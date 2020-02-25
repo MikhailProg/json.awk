@@ -357,10 +357,6 @@ function json_init(     n, a, i) {
     n = split("\",\\,/,b,f,n,r,t", a, ",")
     for (i = 1; i <= n; i++)
         esc[a[i]] = "";
-    # ident["t"] = "rue";
-    n = split("true,false,null", a, ",")
-    for (i = 1; i <= n; i++)
-        ident[substr(a[i], 1, 1)] = substr(a[i], 2);
     # binary chars lookup
     for (i = 0; i < 32; i++)
         bad[sprintf("%c", i)] = i;
