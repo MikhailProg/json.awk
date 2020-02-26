@@ -18,6 +18,14 @@ function j_put_at(j, i, v,      n) {
     return n;
 }
 
+function j_put_kv(j, i, k, v,   n) {
+    n = j_put_at(j, i, k, n);
+    j[i, n, ""] = v;
+    # fast key lookup to find value in array [i, n, k]
+    j[i, 0, k] = n;
+    return n;
+}
+
 function warn(j, m) {
     print "warning:" j["lineno"] ":" j["lpos"] ": " m > "/dev/stderr";
 }
@@ -29,14 +37,6 @@ function err(j, m) {
 function check_k(j, i, k) {
     if ((i, 0, k) in j)
         warn(j, "duplicated key '" k "'");
-}
-
-function j_put_kv(j, i, k, v,   n) {
-    n = j_put_at(j, i, k, n);
-    j[i, n, ""] = v;
-    # fast key lookup to find value in array [i, n, k]
-    j[i, 0, k] = n;
-    return n;
 }
 
 function nextch(j) {
@@ -83,9 +83,8 @@ function escape(j,      c, i, u) {
 }
 
 function str(j,     c, v) {
-    c = j["c"];
     # " is already consumed
-    while (c != "\"") {
+    for (c = j["c"]; c != "\""; c = nextch(j)) {
         if (c == "")
             err(j, "unterminated string");
         else if (c in bad)
@@ -94,7 +93,6 @@ function str(j,     c, v) {
             v = v escape(j);
         else
             v = v c;
-        c = nextch(j);
     }
     nextch(j);
     return v;
