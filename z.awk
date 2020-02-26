@@ -83,6 +83,7 @@ function escape(j,      c, i, u) {
 }
 
 function str(j,     c, v) {
+    v = "";
     # " is already consumed
     for (c = j["c"]; c != "\""; c = nextch(j)) {
         if (c == "")
