@@ -9,7 +9,7 @@ function j_new(j, t, v,       i) {
     return i;
 }
 
-function j_put_at(j, i, v,      n) {
+function j_put_a(j, i, v,      n) {
     # allocate the next index if it's not provided
     if (!((i, "sz") in j))
         j[i, "sz"] = 0;
@@ -19,7 +19,7 @@ function j_put_at(j, i, v,      n) {
 }
 
 function j_put_kv(j, i, k, v,		n) {
-    n = j_put_at(j, i, k);
+    n = j_put_a(j, i, k);
     j[i, n, ""] = v;
     # fast key lookup to find value in array [i, n, k]
     j[i, 0, k] = n;
@@ -41,6 +41,8 @@ function check_k(j, i, k) {
 }
 
 function nextch(j) {
+    if (j["c"] == "")
+        return "";
     j["c"] = substr(j["s"], j["spos"]+1, 1);
     ++j["spos"];
     ++j["lpos"];
@@ -142,11 +144,11 @@ function j_parse_a(j,       i) {
     i = j_new(j, "a", "");
     space(j);
     if (!eat(j, "]")) {
-        j_put_at(j, i, j_parse(j));
+        j_put_a(j, i, j_parse(j));
         space(j);
 
         while (eat(j, ",")) {
-            j_put_at(j, i, j_parse(j));
+            j_put_a(j, i, j_parse(j));
             space(j);
         }
         expct(j, "]");
