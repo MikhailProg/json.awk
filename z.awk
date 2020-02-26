@@ -18,8 +18,8 @@ function j_put_at(j, i, v,      n) {
     return n;
 }
 
-function j_put_kv(j, i, k, v,   n) {
-    n = j_put_at(j, i, k, n);
+function j_put_kv(j, i, k, v,		n) {
+    n = j_put_at(j, i, k);
     j[i, n, ""] = v;
     # fast key lookup to find value in array [i, n, k]
     j[i, 0, k] = n;
