@@ -32,6 +32,7 @@ function warn(j, m) {
 
 function err(j, m) {
     print "error:" j["lineno"] ":" j["lpos"] ": " m > "/dev/stderr";
+    exit 3;
 }
 
 function check_k(j, i, k) {
