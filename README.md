@@ -13,10 +13,10 @@ $ ./z.awk < ./z.json
 
 ```
 
-By default each level of nesting is spaced with 4 whitespaces. The formating may be changed by setting NEST environment variable (number of spaces):
+By default each level of nesting is spaced with 4 whitespaces. The formating may be changed by setting INDENT environment variable (number of spaces):
 
 ```
-$ NEST=1 ./z.awk < ./z.json
+$ INDENT=1 ./z.awk < ./z.json
 {
  "firstName": "John",
  "lastName": "Smith",

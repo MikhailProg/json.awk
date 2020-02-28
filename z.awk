@@ -243,7 +243,7 @@ function j_parse(j,     c) {
     else if (eat(j, "t") || eat(j, "f") || eat(j, "n"))
         return j_parse_i(j, c);
     else
-        err(j, "unexpected " (c == "" ? "eof" : "character"));
+        err(j, "unexpected " (c == "" ? "eof" : "character: " c));
 }
 
 function print_sp(j, nl) {
@@ -385,7 +385,7 @@ function json_flat(j) {
 }
 
 BEGIN {
-    sp = "NEST" in ENVIRON && ENVIRON["NEST"] > 0 ? ENVIRON["NEST"] : 4;
+    sp = "INDENT" in ENVIRON && ENVIRON["INDENT"] > 0 ? ENVIRON["INDENT"] : 4;
     getline source;
 }
 
