@@ -37,7 +37,7 @@ $ time xawk -f ./z.awk <./large-file.json >/dev/null
 
 nawk executes the program directly from AST so it's not surprising that it's so slow. gawk and mawk are close to each other, both use VM to execute the program but mawk is slightly faster. The main gawk drawback is that it is very memory greedy.
 
-# Opts
+## Opts
 
 By default each level of nesting is spaced with 4 whitespaces. The formating may be changed by setting INDENT environment variable (number of spaces):
 
