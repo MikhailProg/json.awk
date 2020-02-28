@@ -23,12 +23,19 @@ gawk 4.1.4
 
 nawk [The Heirloom Toolchest](http://heirloom.sourcefoge.net/tools.html)
 
+All awks produce the same output:
+
+```
+$ xawk -f ./z.awk <./large-file.json >/tmp/xawk.log
+```
 
 The following command is used to test awks:
 
 ```
 $ time xawk -f ./z.awk <./large-file.json >/dev/null
 ```
+
+CPU: Intel i7-7700
 
 |      | gawk  | mawk  | nawk   |
 | ---  | ---   | ---   | ---    |
