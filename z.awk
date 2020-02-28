@@ -1,51 +1,54 @@
 #!/usr/bin/awk -f
 
-function j_new(j, t, v,       i) {
-    if (!("id" in j))
-        j["id"] = 0;
+function j_new(j, p, t, v,       i) {
+    #if (!("id" in j))
+    #    j["id"] = 0;
     i = ++j["id"];
+    j[i, "p"] = p;
     j[i] = t;
     j[i, ""] = v;
     return i;
 }
 
 function j_put_a(j, i, v,      n) {
-    # allocate the next index if it's not provided
-    if (!((i, "sz") in j))
-        j[i, "sz"] = 0;
+    #if (!((i, "sz") in j))
+    #    j[i, "sz"] = 0;
     n = ++j[i, "sz"];
     j[i, n] = v;
     return n;
 }
 
-function j_put_kv(j, i, k, v,		n) {
+function j_put_kv(j, i, k, v,       n) {
     n = j_put_a(j, i, k);
     j[i, n, ""] = v;
     # fast key lookup to find value in array [i, n, k]
-    j[i, 0, k] = n;
+    j[i, "", k] = n;
     return n;
 }
 
 function warn(j, m) {
-    print "warning:" j["lineno"] ":" j["lpos"] ": " m > "/dev/stderr";
+    print "warning:" j["lineno"] ":" j["pos"] ": " m > "/dev/stderr";
 }
 
 function err(j, m) {
-    print "error:" j["lineno"] ":" j["lpos"] ": " m > "/dev/stderr";
+    print "error:" j["lineno"] ":" j["pos"] ": " m > "/dev/stderr";
     exit 3;
 }
 
 function check_k(j, i, k) {
-    if ((i, 0, k) in j)
+    if ((i, "", k) in j)
         warn(j, "duplicated key '" k "'");
 }
 
 function nextch(j) {
     if (j["c"] == "")
         return "";
-    j["c"] = substr(j["s"], j["spos"]+1, 1);
-    ++j["spos"];
-    ++j["lpos"];
+
+    j["c"] = substr(j["s"], j["pos"]+1, 1);
+    if (j["c"] == "")
+        return "";
+
+    ++j["pos"];
     return j["c"];
 }
 
@@ -103,61 +106,12 @@ function str(j,     c, v) {
 }
 
 function space(j,       c) {
-    c = j["c"];
-    while (c == " " || c == "\t" || c == "\n" || c == "\r") {
-        if (c == "\n") {
-            ++j["lineno"];
-            j["lpos"] = 0;
-        }
-        c = nextch(j);
-    }
+    for (c = j["c"]; c == " " || c == "\t"; c = nextch(j))
+        ;
 }
 
-function j_parse_kv(j, i,       k) {
-    space(j);
-    expct(j, "\"");
-    k = str(j);
-    check_k(j, i, k);
-    space(j);
-    expct(j, ":");
-    space(j);
-    j_put_kv(j, i, k, j_parse(j));
-}
-
-function j_parse_o(j,       i) {
-    i = j_new(j, "o", "");
-    space(j);
-    if (!eat(j, "}")) {
-        j_parse_kv(j, i);
-        space(j);
-
-        while (eat(j, ",")) {
-            j_parse_kv(j, i);
-            space(j);
-        }
-        expct(j, "}");
-    }
-    return i;
-}
-
-function j_parse_a(j,       i) {
-    i = j_new(j, "a", "");
-    space(j);
-    if (!eat(j, "]")) {
-        j_put_a(j, i, j_parse(j));
-        space(j);
-
-        while (eat(j, ",")) {
-            j_put_a(j, i, j_parse(j));
-            space(j);
-        }
-        expct(j, "]");
-    }
-    return i;
-}
-
-function j_parse_s(j) {
-    return j_new(j, "s", str(j));
+function j_parse_s(j, p) {
+    return j_new(j, p, T_S, str(j));
 }
 
 function isdig(c) {
@@ -191,7 +145,7 @@ function frac_exp(j,    c, f) {
     return f;
 }
 
-function j_parse_n(j, c,    n) {
+function j_parse_n(j, p, c,    n) {
     n = "";
     if (c == "-") {
         n = "-";
@@ -207,17 +161,17 @@ function j_parse_n(j, c,    n) {
         for (c = j["c"]; isdig(c); c = nextch(j))
             n = n c;
 
-    return j_new(j, "n", n frac_exp(j));
+    return j_new(j, p, T_N, n frac_exp(j));
 }
 
-function j_parse_i(j, c) {
+function j_parse_i(j, p, c) {
     if (c == "t" && !(eat(j, "r") && eat(j, "u") && eat(j, "e")))
         err(j, "'true' epxected");
     else if (c == "f" && !(eat(j, "a") && eat(j, "l") && eat(j, "s") && eat(j, "e")))
         err(j, "'false' epxected");
     else if (c == "n" && !(eat(j, "u") && eat(j, "l") && eat(j, "l")))
         err(j, "'null' epxected");
-    return j_new(j, c == "n" ? "z" : c, "");
+    return j_new(j, p, c == "t" ? T_T : c == "f" ? T_F : T_Z, "");
 }
 
 function eatdig(j) {
@@ -229,88 +183,148 @@ function eatdig(j) {
     }
 }
 
-function j_parse(j,     c) {
-    space(j);
-    c = j["c"];
-    if (eat(j, "["))
-        return j_parse_a(j);
-    else if (eat(j, "{"))
-        return j_parse_o(j);
-    else if (eat(j, "\""))
-        return j_parse_s(j);
-    else if (eat(j, "-") || eatdig(j))
-        return j_parse_n(j, c);
-    else if (eat(j, "t") || eat(j, "f") || eat(j, "n"))
-        return j_parse_i(j, c);
+function j_put_p(j, i,    p, t) {
+    p = j[i, "p"];
+    t = j[p];
+    if (t == T_A)
+        j_put_a(j, p, i);
+    else if (t == T_O)
+        j_put_kv(j, p, j[p, "k"], i);
     else
-        err(j, "unexpected " (c == "" ? "eof" : "character: " c));
+        exit 5;
+}
+
+function j_parse(j,     p, s, i, c) {
+    i = 0;
+    p = j["par"];
+    s = j["state"];
+
+    for (;;) {
+        space(j);
+        c = j["c"];
+        # eol
+        if (c == "") {
+            j["par"] = p;
+            j["state"] = s;
+            return 0;
+        }
+
+        if (s == S_ARR || s == S_ARRTL ||
+            s == S_OBJ || s == S_OBJTL) {
+            c = (s == S_ARR || s == S_ARRTL) ? "]" : "}";
+            if (eat(j, c)) {
+                i = p;
+                if (s == S_OBJ || s == S_OBJTL)
+                    delete j[i, "k"];
+                p = j[i, "p"];
+                if (!p)
+                    break;
+                j_put_p(j, i);
+                s = j[p] == T_O ? S_OBJTL : S_ARRTL;
+            } else {
+                if (s == S_ARRTL || s == S_OBJTL)
+                    expct(j, ",");
+                if (s == S_ARR || s == S_ARRTL)
+                    s = S_VAL;
+                else
+                    s = S_OBJKEY;
+            }
+        } else if (s == S_OBJKEY) {
+            expct(j, "\"");
+            j[p, "k"] = str(j);
+            check_k(j, p, j[p, "k"]);
+            s = S_OBJCOL;
+        } else if (s == S_OBJCOL) {
+            expct(j, ":");
+            s = S_VAL;
+        } else if (s == S_VAL) {
+            if (eat(j, "[")) {
+                p = i = j_new(j, p, T_A, "");
+                s = S_ARR;
+            } else if (eat(j, "{")) {
+                p = i = j_new(j, p, T_O, "");
+                j[i, "k"] = "";
+                s = S_OBJ;
+            } else {
+                # atom types
+                if (eat(j, "\"")) {
+                    i = j_parse_s(j, p);
+                } else if (eat(j, "-") || eatdig(j)) {
+                    i = j_parse_n(j, p, c);
+                } else if (eat(j, "t") || eat(j, "f") || eat(j, "n")) {
+                    i = j_parse_i(j, p, c);
+                } else {
+                    err(j, "unexpected " (c == "" ? "eof" : "character: " c));
+                }
+                if (!p)
+                    break;
+                j_put_p(j, i);
+                s = j[p] == T_O ? S_OBJTL : S_ARRTL;
+            }
+        } else {
+            err(j, "unknown state " s);
+        }
+    }
+
+    j["state"] = S_END;
+    return i;
 }
 
 function print_sp(j, nl) {
     printf("%s%*s", nl ? "\n" : "", j["nest"] * sp, "");
 }
 
-function j_print_s(j, s) {
-    printf("\"%s\"", j[s, ""]);
-}
+function j_print(j, i,     s, e, t, n) {
+    while (i) {
+        t = j[i];
+        if (t == T_O || t == T_A) {
+            if (t == T_O) {
+                s = "{"; e = "}";
+            } else {
+                s = "["; e = "]"; 
+            }
 
-function j_print_n(j, n) {
-    printf("%s", j[n, ""]);
-}
+            if (!((i, "n") in j)) {
+                # open array or object
+                print s;
+                j["nest"] += 1;
+                j[i, "n"] = 0; # iteration state
+            }
 
-function j_print_a(j, a,       i) {
-    printf("[\n");
-    j["nest"] += 1;
-
-    if ((a, "sz") in j) {
-        for (i = 1; i <= j[a, "sz"]; i++) {
-            print_sp(j, 0);
-            j_print(j, j[a, i])
-            if (i != j[a, "sz"])
-                print ",";
+            n = j[i, "n"];
+            if (n < j[i, "sz"]) {
+                if (n > 0)
+                    print ",";
+                j[i, "n"] = ++n;
+                print_sp(j, 0);
+                if (t == T_O) {
+                    printf("\"%s\": ", j[i, n]);
+                    i = j[i, n, ""];
+                } else {
+                    i = j[i, n];
+                }
+            } else {
+                # close array or object
+                delete j[i, "n"];
+                j["nest"] -= 1;
+                print_sp(j, n > 0);
+                printf(e);
+                i = j[i, "p"];
+            }
+        } else {
+            if (t == T_S)
+                printf("\"%s\"", j[i, ""]);
+            else if (t == T_N)
+                printf("%s", j[i, ""]);
+            else if (j[i] == T_T)
+                printf("true");
+            else if (j[i] == T_F)
+                printf("false");
+            else if (j[i] == T_Z)
+                printf("null");
+            i = j[i, "p"];
         }
     }
-
-    j["nest"] -= 1;
-    print_sp(j, (a, "sz") in j);
-    printf("]");
-}
-
-function j_print_o(j, o,       i, k) {
-    printf("{\n");
-    j["nest"] += 1;
-
-    if ((o, "sz") in j) {
-        for (i = 1; i <= j[o, "sz"]; i++) {
-            k = j[o, i];
-            print_sp(j, 0);
-            printf("\"%s\": ", k);
-            j_print(j, j[o, i, ""]);
-            if (i != j[o, "sz"])
-                print ",";
-        }
-    }
-
-    j["nest"] -= 1;
-    print_sp(j, (o, "sz") in j);
-    printf("}");
-}
-
-function j_print(j, i) {
-    if (j[i] == "a")
-        j_print_a(j, i)
-    else if (j[i] == "o")
-        j_print_o(j, i)
-    else if (j[i] == "s")
-        j_print_s(j, i)
-    else if (j[i] == "n")
-        j_print_n(j, i)
-    else if (j[i] == "t")
-        printf("true");
-    else if (j[i] == "f")
-        printf("false");
-    else if (j[i] == "z")
-        printf("null");
 }
 
 function j_flat_a(j, a,    i) {
@@ -343,40 +357,50 @@ function j_flat_n(j, n) {
 function j_flat(j,     i) {
     printf("[\"id\"] = %d\n", j["id"]);
     for (i = 1; i <= j["id"]; i++) {
-        printf("[%d] = \"%s\"\n", i, j[i]);
-        if (j[i] == "a")
+        printf("[%d] = %s\n", i, t2s[j[i]]);
+        if (j[i] == T_A)
             j_flat_a(j, i);
-        else if (j[i] == "o")
+        else if (j[i] == T_O)
             j_flat_o(j, i)
-        else if (j[i] == "s")
+        else if (j[i] == T_S)
             j_flat_s(j, i)
-        else if (j[i] == "n")
+        else if (j[i] == T_N)
             j_flat_n(j, i)
     }
 }
 
-function json_init(     n, a, i) {
+function json_init(j,     n, a, i) {
+    # iterative states
+    S_ARR = 1; S_ARRTL = 2; S_OBJ = 3; S_OBJKEY = 4;
+    S_OBJCOL = 5; S_OBJTL = 6; S_VAL = 7; S_END = 8;
+    # array, object, string, number, true. false, null (Z)
+    T_A = 1; T_O = 2; T_S = 3; T_N = 4; T_T = 5; T_F = 6; T_Z = 7;
+
+    split("arr,obj,str,num,true,false,null", t2s, ",")
     n = split("\",\\,/,b,f,n,r,t", a, ",")
     for (i = 1; i <= n; i++)
         esc[a[i]] = "";
     # binary chars lookup
     for (i = 0; i < 32; i++)
         bad[sprintf("%c", i)] = i;
+    j["par"] = 0;
+    j["nest"] = 0;
+    j["state"] = S_VAL;
+    j["lineno"] = 0;
 }
 
 function json_parse(j, s) {
     j["s"] = s;
     j["c"] = " ";
-    j["spos"] = 0;
-    j["lpos"] = 0;
-    j["nest"] = 0;
-    j["lineno"] = 1;
+    j["pos"] = 0;
     return j_parse(j);
 }
 
 function json_print(j) {
-    if ("id" in j && "1" in j)
+    if ("id" in j && "1" in j) {
         j_print(j, 1);
+        print "";
+    }
 }
 
 function json_flat(j) {
@@ -385,17 +409,22 @@ function json_flat(j) {
 }
 
 BEGIN {
+    # don't need fields
+    FS = "\n";
     sp = "INDENT" in ENVIRON && ENVIRON["INDENT"] > 0 ? ENVIRON["INDENT"] : 4;
-    getline source;
+    json_init(json);
 }
 
 {
-    source = source "\n" $0;
+    json["lineno"] += 1;
+    if (json_parse(json, $0)) {
+        "FLAT" in ENVIRON ? json_flat(json) : json_print(json);
+        exit 0;
+    }
 }
 
 END {
-    json_init();
-    json_parse(json, source);
-    "FLAT" in ENVIRON ? json_flat(json) : json_print(json);
+    print "THE END" >> "/tmp/awk.log";
+    system("sleep 10000");
 }
 
