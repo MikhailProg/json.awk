@@ -186,12 +186,10 @@ function eatdig(j) {
 function j_put_p(j, i,    p, t) {
     p = j[i, "p"];
     t = j[p];
-    if (t == T_A)
-        j_put_a(j, p, i);
-    else if (t == T_O)
+    if (t == T_O)
         j_put_kv(j, p, j[p, "k"], i);
     else
-        exit 5;
+        j_put_a(j, p, i);
 }
 
 function j_parse(j,     p, s, i, c) {
