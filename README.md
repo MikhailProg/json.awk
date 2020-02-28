@@ -15,6 +15,8 @@ $ ./z.awk < ./z.json
 
 ```
 
+## Test awks
+
 mawk 1.3.4
 
 gawk 4.1.4
@@ -22,7 +24,7 @@ gawk 4.1.4
 nawk [The Heirloom Toolchest](http://heirloom.sourcefoge.net/tools.html)
 
 
-The following command was used to test awk implementations:
+The following command is used to test awks:
 
 ```
 $ time xawk -f ./z.awk <./large-file.json >/dev/null
