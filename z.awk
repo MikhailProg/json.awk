@@ -423,8 +423,8 @@ BEGIN {
     }
 }
 
-END {
-    print "THE END" >> "/tmp/awk.log";
-    system("sleep 10000");
-}
+#END {
+#    print "THE END" >> "/tmp/awk.log";
+#    system("sleep 10000");
+#}
 
