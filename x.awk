@@ -230,7 +230,6 @@ function j_init(     n, a, i) {
     # iterative states
     S_ARR = 1; S_ARRTL = 2; S_OBJ = 3; S_OBJKEY = 4;
     S_OBJCOL = 5; S_OBJTL = 6; S_VAL = 7; S_END = 8;
-    split("arr,obj,str,num,true,false,null", t2s, ",");
 
     n = split("\",\\,/,b,f,n,r,t", a, ",")
     for (i = 1; i <= n; i++)
