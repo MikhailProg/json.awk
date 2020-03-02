@@ -1,18 +1,16 @@
 #!/usr/bin/awk -f
 
 function j_new(j, p, t, v,       i) {
-    #if (!("id" in j))
-    #    j["id"] = 0;
     i = ++j["id"];
     j[i, "p"] = p;
     j[i] = t;
+    if (t == T_O || t == T_A)
+        j[i, "sz"] = 0;
     j[i, ""] = v;
     return i;
 }
 
 function j_put_a(j, i, v,      n) {
-    #if (!((i, "sz") in j))
-    #    j[i, "sz"] = 0;
     n = ++j[i, "sz"];
     j[i, n] = v;
     return n;
@@ -192,9 +190,13 @@ function j_put_p(j, i,    p, t) {
         j_put_a(j, p, i);
 }
 
-function j_parse(j,     p, s, i, c) {
+function j_parse(j, src,      p, s, i, c) {
+    j["s"] = src;
+    j["c"] = " ";
+    j["pos"] = 0;
+
     i = 0;
-    p = j["par"];
+    p = j["parent"];
     s = j["state"];
 
     for (;;) {
@@ -202,7 +204,7 @@ function j_parse(j,     p, s, i, c) {
         c = j["c"];
         # eol
         if (c == "") {
-            j["par"] = p;
+            j["parent"] = p;
             j["state"] = s;
             return 0;
         }
@@ -325,49 +327,29 @@ function j_print(j, i,     s, e, t, n) {
     }
 }
 
-function j_flat_a(j, a,    i) {
-    if ((a, "sz") in j) {
-        printf("[%d, \"sz\"] = %d\n", a, j[a, "sz"]);
-        for (i = 1; i <= j[a, "sz"]; i++)
-            printf("[%d, %d] = %s\n", a, i, j[a, i]);
-    }
-}
-
-function j_flat_o(j, o,     i, k) {
-    if ((o, "sz") in j) {
-        printf("[%d, \"sz\"] = %d\n", o, j[o, "sz"]);
-        for (i = 1; i <= j[o, "sz"]; i++) {
-            k = j[o, i];
-            printf("[%d, %d] = \"%s\"\n", o, i, k);
-            printf("[%d, %d, \"\"] = %s\n", o, i, j[o, i, ""]);
+function j_flat(j,     i, k) {
+    printf("[\"id\"] = %d\n", j["id"]);
+    for (i = 1; i <= j["id"]; i++) {
+        printf("[%d] = %s\n", i, t2s[j[i]]);
+        if (j[i] == T_A) {
+            printf("[%d, \"sz\"] = %d\n", i, j[i, "sz"]);
+            for (k = 1; k <= j[i, "sz"]; k++)
+                printf("[%d, %d] = %s\n", i, k, j[i, k]);
+        } else if (j[i] == T_O) {
+            printf("[%d, \"sz\"] = %d\n", i, j[i, "sz"]);
+            for (k = 1; k <= j[i, "sz"]; k++) {
+                printf("[%d, %d] = \"%s\"\n", i, k, j[i, k]);
+                printf("[%d, %d, \"\"] = %s\n", i, k, j[i, k, ""]);
+            }
+        } else if (j[i] == T_S) {
+            printf("[%d, \"\"] = \"%s\"\n", i, j[i, ""]);
+        } else if (j[i] == T_N) {
+            printf("[%d, \"\"] = %s\n", i, j[i, ""]);
         }
     }
 }
 
-function j_flat_s(j, s) {
-    printf("[%d, \"\"] = \"%s\"\n", s, j[s, ""]);
-}
-
-function j_flat_n(j, n) {
-    printf("[%d, \"\"] = %s\n", n, j[n, ""]);
-}
-
-function j_flat(j,     i) {
-    printf("[\"id\"] = %d\n", j["id"]);
-    for (i = 1; i <= j["id"]; i++) {
-        printf("[%d] = %s\n", i, t2s[j[i]]);
-        if (j[i] == T_A)
-            j_flat_a(j, i);
-        else if (j[i] == T_O)
-            j_flat_o(j, i)
-        else if (j[i] == T_S)
-            j_flat_s(j, i)
-        else if (j[i] == T_N)
-            j_flat_n(j, i)
-    }
-}
-
-function json_init(j,     n, a, i) {
+function j_init(     n, a, i) {
     # iterative states
     S_ARR = 1; S_ARRTL = 2; S_OBJ = 3; S_OBJKEY = 4;
     S_OBJCOL = 5; S_OBJTL = 6; S_VAL = 7; S_END = 8;
@@ -381,44 +363,35 @@ function json_init(j,     n, a, i) {
     # binary chars lookup
     for (i = 0; i < 32; i++)
         bad[sprintf("%c", i)] = i;
-    j["par"] = 0;
+}
+
+function j_obj(j) {
+    j["id"] = 0;
     j["nest"] = 0;
     j["state"] = S_VAL;
+    j["parent"] = 0;
     j["lineno"] = 0;
-}
-
-function json_parse(j, s) {
-    j["s"] = s;
-    j["c"] = " ";
-    j["pos"] = 0;
-    return j_parse(j);
-}
-
-function json_print(j) {
-    if ("id" in j && "1" in j) {
-        j_print(j, 1);
-        print "";
-    }
-}
-
-function json_flat(j) {
-    if ("id" in j)
-        j_flat(j);
 }
 
 BEGIN {
     # don't need fields
     FS = "\n";
     sp = "INDENT" in ENVIRON && ENVIRON["INDENT"] > 0 ? ENVIRON["INDENT"] : 4;
-    json_init(json);
-}
+    j_init();
+    j_obj(obj);
 
-{
-    json["lineno"] += 1;
-    if (json_parse(json, $0)) {
-        "FLAT" in ENVIRON ? json_flat(json) : json_print(json);
-        exit 0;
+    while (getline src > 0) {
+        obj["lineno"] += 1;
+        id = j_parse(obj, src);
+        if (id) {
+            if ("NOPRINT" in ENVIRON)
+                exit 0;
+            "FLAT" in ENVIRON ? j_flat(obj) : j_print(obj, id);
+            exit 0;
+        }
     }
+
+    err(j, "incomplete file");
 }
 
 #END {

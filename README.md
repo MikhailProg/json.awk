@@ -4,7 +4,7 @@ To represent JSON tree structure the beautifier doesn't use gawk multidimensiona
 
 Even if now gawk is presented everywhere the challenge was to run the beautifier within any awk implementation. I even tried nawk from [The Heirloom Toolchest](http://heirloom.sourceforge.net/tools.html) and it works fine but sure not very fast.
 
-The beautifier doesn't use recursion, the parser and the printer are iterative (there is an initial recursive version in `recursive` branch). The parser is lineoriented, it preserves state between parsing adjoint lines.
+The beautifier doesn't use recursion, the parser and the printer are iterative (there is a recursive version in `recursive` branch). A recursive parser needs a whole json file in advance before start parsing. The main recursive parser disadvantage is that it is difficult (if possible at all for AWK runtime) to keep the parser state (deep nesting stack) and then to restore it on the next data chunk. The iterative approach works much better, the current parser is lineoriented, it reads input line by line and preserves its state between parsing adjoint lines.
 
 The beautifier is also a verifier since it follows RFC.
 
@@ -39,10 +39,10 @@ CPU: Intel i7-7700
 
 |      | gawk  | mawk  | nawk   |
 | ---  | ---   | ---   | ---    |
-| Time | 19s   | 15s   | 4m 55s |
+| Time | 19s   | 15s   | 4m 54s |
 | RSS  | 871Mb | 367Mb | 536Mb  |
 
-nawk executes the program directly from AST so it's not surprising that it's so slow. gawk and mawk are close to each other, both use VM to execute the program but mawk is slightly faster. The main gawk drawback is that it is very memory greedy.
+nawk executes the program directly from AST so it's not surprising that it's so slow. gawk and mawk are close to each other, both use VM to execute the program but mawk is slightly faster. The main gawk drawback is that it consumes a lot of memory.
 
 ## Opts
 
