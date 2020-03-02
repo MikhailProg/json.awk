@@ -356,7 +356,7 @@ function j_init(     n, a, i) {
     # array, object, string, number, true. false, null (Z)
     T_A = 1; T_O = 2; T_S = 3; T_N = 4; T_T = 5; T_F = 6; T_Z = 7;
 
-    split("arr,obj,str,num,true,false,null", t2s, ",")
+    split("arr,obj,str,num,true,false,null", t2s, ",");
     n = split("\",\\,/,b,f,n,r,t", a, ",")
     for (i = 1; i <= n; i++)
         esc[a[i]] = "";
