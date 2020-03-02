@@ -8,10 +8,16 @@ The beautifier doesn't use recursion, the parser and the printer are iterative (
 
 The beautifier is also a verifier since it follows RFC.
 
-Run beautifier:
+`x.sh` is online beautifier it checks JSON string, number, grammar rules and print content immediately.
+`z.sh` stores the parsed object and just when it is fully parsed print it. 
+
+Run beautifiers:
 
 ```
+$ ./x.awk < ./z.json
+...
 $ ./z.awk < ./z.json
+...
 
 ```
 
@@ -37,12 +43,22 @@ $ time xawk -f ./z.awk <./large-file.json >/dev/null
 
 CPU: Intel i7-7700
 
+Result for `x.sh`:
+
+|      | gawk  | mawk  | nawk   |
+| ---  | ---   | ---   | ---    |
+| Time | 15s   | 7.5s  | 4m 47s |
+
+
+Result for `z.sh`:
+
 |      | gawk  | mawk  | nawk   |
 | ---  | ---   | ---   | ---    |
 | Time | 19s   | 15s   | 4m 54s |
 | RSS  | 871Mb | 367Mb | 536Mb  |
 
-nawk executes the program directly from AST so it's not surprising that it's so slow. gawk and mawk are close to each other, both use VM to execute the program but mawk is slightly faster. The main gawk drawback is that it consumes a lot of memory.
+
+nawk executes the program directly from AST so it's not surprising that it's so slow. gawk and mawk use VM to execute the program but mawk is faster especially in online version. The main gawk drawback is that it consumes a lot of memory.
 
 ## Opts
 
@@ -66,7 +82,7 @@ $ INDENT=1 ./z.awk < ./z.json
 
 ```
 
-Set FLAT environment variable to see how parsed JSON object is stored in a flat structure:
+Set FLAT environment variable (for `z.sh` only) to see how parsed JSON object is stored in a flat structure:
 
 ```
 $ FLAT=1 ./z.awk < ./z.json

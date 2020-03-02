@@ -2,7 +2,7 @@
   "firstName": "John",
   "lastName": "Smith",
   "isAlive": true,
-  "age": 27,
+  "age": 271.3e-1,
   "address": {
     "streetAddress": "21 2nd Street",
     "city": "New York",
