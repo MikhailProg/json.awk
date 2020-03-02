@@ -1,28 +1,25 @@
 #!/usr/bin/awk -f
 
 function j_new(j, t, v,       i) {
-    if (!("id" in j))
-        j["id"] = 0;
     i = ++j["id"];
     j[i] = t;
+    if (t == T_O || t == T_A)
+        j[i, "sz"] = 0;
     j[i, ""] = v;
     return i;
 }
 
 function j_put_a(j, i, v,      n) {
-    # allocate the next index if it's not provided
-    if (!((i, "sz") in j))
-        j[i, "sz"] = 0;
     n = ++j[i, "sz"];
     j[i, n] = v;
     return n;
 }
 
-function j_put_kv(j, i, k, v,		n) {
+function j_put_kv(j, i, k, v,       n) {
     n = j_put_a(j, i, k);
     j[i, n, ""] = v;
     # fast key lookup to find value in array [i, n, k]
-    j[i, 0, k] = n;
+    j[i, "", k] = n;
     return n;
 }
 
@@ -36,7 +33,7 @@ function err(j, m) {
 }
 
 function check_k(j, i, k) {
-    if ((i, 0, k) in j)
+    if ((i, "", k) in j)
         warn(j, "duplicated key '" k "'");
 }
 
@@ -125,7 +122,7 @@ function j_parse_kv(j, i,       k) {
 }
 
 function j_parse_o(j,       i) {
-    i = j_new(j, "o", "");
+    i = j_new(j, T_O, "");
     space(j);
     if (!eat(j, "}")) {
         j_parse_kv(j, i);
@@ -141,7 +138,7 @@ function j_parse_o(j,       i) {
 }
 
 function j_parse_a(j,       i) {
-    i = j_new(j, "a", "");
+    i = j_new(j, T_A, "");
     space(j);
     if (!eat(j, "]")) {
         j_put_a(j, i, j_parse(j));
@@ -157,7 +154,7 @@ function j_parse_a(j,       i) {
 }
 
 function j_parse_s(j) {
-    return j_new(j, "s", str(j));
+    return j_new(j, T_S, str(j));
 }
 
 function isdig(c) {
@@ -207,7 +204,7 @@ function j_parse_n(j, c,    n) {
         for (c = j["c"]; isdig(c); c = nextch(j))
             n = n c;
 
-    return j_new(j, "n", n frac_exp(j));
+    return j_new(j, T_N, n frac_exp(j));
 }
 
 function j_parse_i(j, c) {
@@ -217,7 +214,7 @@ function j_parse_i(j, c) {
         err(j, "'false' epxected");
     else if (c == "n" && !(eat(j, "u") && eat(j, "l") && eat(j, "l")))
         err(j, "'null' epxected");
-    return j_new(j, c == "n" ? "z" : c, "");
+    return j_new(j, c == "t" ? T_T : c == "f" ? T_F : T_Z, "");
 }
 
 function eatdig(j) {
@@ -250,29 +247,19 @@ function print_sp(j, nl) {
     printf("%s%*s", nl ? "\n" : "", j["nest"] * sp, "");
 }
 
-function j_print_s(j, s) {
-    printf("\"%s\"", j[s, ""]);
-}
-
-function j_print_n(j, n) {
-    printf("%s", j[n, ""]);
-}
-
 function j_print_a(j, a,       i) {
     printf("[\n");
     j["nest"] += 1;
 
-    if ((a, "sz") in j) {
-        for (i = 1; i <= j[a, "sz"]; i++) {
-            print_sp(j, 0);
-            j_print(j, j[a, i])
-            if (i != j[a, "sz"])
-                print ",";
-        }
+    for (i = 1; i <= j[a, "sz"]; i++) {
+        print_sp(j, 0);
+        j_print(j, j[a, i])
+        if (i != j[a, "sz"])
+            print ",";
     }
 
     j["nest"] -= 1;
-    print_sp(j, (a, "sz") in j);
+    print_sp(j, j[a, "sz"] > 0);
     printf("]");
 }
 
@@ -280,82 +267,64 @@ function j_print_o(j, o,       i, k) {
     printf("{\n");
     j["nest"] += 1;
 
-    if ((o, "sz") in j) {
-        for (i = 1; i <= j[o, "sz"]; i++) {
-            k = j[o, i];
-            print_sp(j, 0);
-            printf("\"%s\": ", k);
-            j_print(j, j[o, i, ""]);
-            if (i != j[o, "sz"])
-                print ",";
-        }
+    for (i = 1; i <= j[o, "sz"]; i++) {
+        k = j[o, i];
+        print_sp(j, 0);
+        printf("\"%s\": ", k);
+        j_print(j, j[o, i, ""]);
+        if (i != j[o, "sz"])
+            print ",";
     }
 
     j["nest"] -= 1;
-    print_sp(j, (o, "sz") in j);
+    print_sp(j, j[o, "sz"] > 0);
     printf("}");
 }
 
 function j_print(j, i) {
-    if (j[i] == "a")
+    if (j[i] == T_A)
         j_print_a(j, i)
-    else if (j[i] == "o")
+    else if (j[i] == T_O)
         j_print_o(j, i)
-    else if (j[i] == "s")
-        j_print_s(j, i)
-    else if (j[i] == "n")
-        j_print_n(j, i)
-    else if (j[i] == "t")
+    else if (j[i] == T_S)
+        printf("\"%s\"", j[i, ""]);
+    else if (j[i] == T_N)
+        printf("%s", j[i, ""]);
+    else if (j[i] == T_T)
         printf("true");
-    else if (j[i] == "f")
+    else if (j[i] == T_F)
         printf("false");
-    else if (j[i] == "z")
+    else if (j[i] == T_Z)
         printf("null");
 }
 
-function j_flat_a(j, a,    i) {
-    if ((a, "sz") in j) {
-        printf("[%d, \"sz\"] = %d\n", a, j[a, "sz"]);
-        for (i = 1; i <= j[a, "sz"]; i++)
-            printf("[%d, %d] = %s\n", a, i, j[a, i]);
-    }
-}
-
-function j_flat_o(j, o,     i, k) {
-    if ((o, "sz") in j) {
-        printf("[%d, \"sz\"] = %d\n", o, j[o, "sz"]);
-        for (i = 1; i <= j[o, "sz"]; i++) {
-            k = j[o, i];
-            printf("[%d, %d] = \"%s\"\n", o, i, k);
-            printf("[%d, %d, \"\"] = %s\n", o, i, j[o, i, ""]);
+function j_flat(j,     i, k) {
+    printf("[\"id\"] = %d\n", j["id"]);
+    for (i = 1; i <= j["id"]; i++) {
+        printf("[%d] = %s\n", i, t2s[j[i]]);
+        if (j[i] == T_A) {
+            printf("[%d, \"sz\"] = %d\n", i, j[i, "sz"]);
+            for (k = 1; k <= j[i, "sz"]; k++)
+                printf("[%d, %d] = %s\n", i, k, j[i, k]);
+        } else if (j[i] == T_O) {
+            printf("[%d, \"sz\"] = %d\n", i, j[i, "sz"]);
+            for (k = 1; k <= j[i, "sz"]; k++) {
+                printf("[%d, %d] = \"%s\"\n", i, k, j[i, k]);
+                printf("[%d, %d, \"\"] = %s\n", i, k, j[i, k, ""]);
+            }
+        } else if (j[i] == T_S) {
+            printf("[%d, \"\"] = \"%s\"\n", i, j[i, ""]);
+        } else if (j[i] == T_N) {
+            printf("[%d, \"\"] = %s\n", i, j[i, ""]);
         }
     }
 }
 
-function j_flat_s(j, s) {
-    printf("[%d, \"\"] = \"%s\"\n", s, j[s, ""]);
-}
+function j_init(     n, a, i) {
+    # array, object, string, number, true. false, null (Z)
+    T_A = 1; T_O = 2; T_S = 3; T_N = 4; T_T = 5; T_F = 6; T_Z = 7;
 
-function j_flat_n(j, n) {
-    printf("[%d, \"\"] = %s\n", n, j[n, ""]);
-}
-
-function j_flat(j,     i) {
-    printf("[\"id\"] = %d\n", j["id"]);
-    for (i = 1; i <= j["id"]; i++) {
-        printf("[%d] = \"%s\"\n", i, j[i]);
-        if (j[i] == "a")
-            j_flat_a(j, i);
-        else if (j[i] == "o")
-            j_flat_o(j, i)
-        else if (j[i] == "s")
-            j_flat_s(j, i)
-        else if (j[i] == "n")
-            j_flat_n(j, i)
-    }
-}
-
-function json_init(     n, a, i) {
+    split("arr,obj,str,num,true,false,null", t2s, ",");
     n = split("\",\\,/,b,f,n,r,t", a, ",")
     for (i = 1; i <= n; i++)
         esc[a[i]] = "";
@@ -364,24 +333,15 @@ function json_init(     n, a, i) {
         bad[sprintf("%c", i)] = i;
 }
 
-function json_parse(j, s) {
+function j_parse0(j, s) {
     j["s"] = s;
     j["c"] = " ";
+    j["id"] = 0;
     j["spos"] = 0;
     j["lpos"] = 0;
     j["nest"] = 0;
     j["lineno"] = 1;
     return j_parse(j);
-}
-
-function json_print(j) {
-    if ("id" in j && "1" in j)
-        j_print(j, 1);
-}
-
-function json_flat(j) {
-    if ("id" in j)
-        j_flat(j);
 }
 
 BEGIN {
@@ -394,8 +354,8 @@ BEGIN {
 }
 
 END {
-    json_init();
-    json_parse(json, source);
-    "FLAT" in ENVIRON ? json_flat(json) : json_print(json);
+    j_init();
+    id = j_parse0(obj, source);
+    "FLAT" in ENVIRON ? j_flat(obj) : j_print(obj, id);
 }
 
