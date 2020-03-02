@@ -253,11 +253,9 @@ BEGIN {
     j_init();
     j_obj(obj);
 
-    while (getline line > 0) {
-        id = j_parse(obj, line);
-        if (id)
+    while (getline line > 0)
+        if (j_parse(obj, line))
             exit 0;
-    }
 
     err(obj, "incomplete file");
 }
