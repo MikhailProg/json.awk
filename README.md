@@ -10,7 +10,7 @@ The beautifier is also a verifier since it follows RFC.
 
 `x.sh` is online beautifier it checks JSON string, number, grammar rules and prints content immediately.
 
-`z.sh` stores the parsed object and just when it is fully parsed print it. 
+`z.sh` stores the parsed object and just when it is fully parsed prints it. 
 
 Run beautifiers:
 
