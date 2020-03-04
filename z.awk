@@ -123,7 +123,7 @@ function frac_exp(j,    c, f) {
         f = f c;
         c = nextch(j);
         if (!isdig(c))
-            err(j, "epxected fraction");
+            err(j, "expected fraction");
         for (; isdig(c); c = nextch(j))
             f = f c;
     }
@@ -136,7 +136,7 @@ function frac_exp(j,    c, f) {
             c = nextch(j);
         }
         if (!isdig(c))
-            err(j, "epxected exponent");
+            err(j, "expected exponent");
         for (; isdig(c); c = nextch(j))
             f = f c;
     }
@@ -149,7 +149,7 @@ function num(j, c,    n) {
         n = "-";
         c = j["c"];
         if (!isdig(c))
-            err(j, "epxected number");
+            err(j, "expected number");
         nextch(j);
     }
 
@@ -168,11 +168,11 @@ function j_parse_n(j, p, c) {
 
 function j_parse_i(j, p, c) {
     if (c == "t" && !(eat(j, "r") && eat(j, "u") && eat(j, "e")))
-        err(j, "'true' epxected");
+        err(j, "'true' expected");
     else if (c == "f" && !(eat(j, "a") && eat(j, "l") && eat(j, "s") && eat(j, "e")))
-        err(j, "'false' epxected");
+        err(j, "'false' expected");
     else if (c == "n" && !(eat(j, "u") && eat(j, "l") && eat(j, "l")))
-        err(j, "'null' epxected");
+        err(j, "'null' expected");
     return j_new(j, p, c == "t" ? T_T : c == "f" ? T_F : T_Z, "");
 }
 
