@@ -6,9 +6,6 @@ function err(j, m) {
 }
 
 function nextch(j) {
-    if (j["c"] == "")
-        return "";
-
     j["c"] = substr(j["s"], j["pos"]+1, 1);
     if (j["c"] == "")
         return "";
@@ -150,8 +147,8 @@ function print_sp(nl, nest) {
 
 function j_parse(j, src,      s, c, n) {
     j["s"] = src;
-    j["c"] = " ";
     j["pos"] = 0;
+    nextch(j);
 
     s = j["state"];
     n = j["nest"];

@@ -39,9 +39,6 @@ function check_k(j, i, k) {
 }
 
 function nextch(j) {
-    if (j["c"] == "")
-        return "";
-
     j["c"] = substr(j["s"], j["pos"]+1, 1);
     if (j["c"] == "")
         return "";
@@ -196,8 +193,8 @@ function j_put_p(j, i,    p, t) {
 
 function j_parse(j, src,      p, s, i, c) {
     j["s"] = src;
-    j["c"] = " ";
     j["pos"] = 0;
+    nextch(j);
 
     i = 0;
     p = j["parent"];
