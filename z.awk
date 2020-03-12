@@ -24,11 +24,11 @@ function j_put_kv(j, i, k, v,       n) {
 }
 
 function warn(j, m) {
-    print "warning:" j["lineno"] ":" j["lpos"] ": " m > "/dev/stderr";
+    print "warning:" NR ":" j["pos"] ": " m > "/dev/stderr";
 }
 
 function err(j, m) {
-    print "error:" j["lineno"] ":" j["lpos"] ": " m > "/dev/stderr";
+    print "error:" NR ":" j["pos"] ": " m > "/dev/stderr";
     exit 3;
 }
 
@@ -37,12 +37,24 @@ function check_k(j, i, k) {
         warn(j, "duplicated key '" k "'");
 }
 
-function nextch(j) {
+function nextchL(j) {
+    if (j["s"] == "")
+        return "";
+    j["c"] = substr(j["s"], j["pos"]+1, 1);
     if (j["c"] == "")
         return "";
-    j["c"] = substr(j["s"], j["spos"]+1, 1);
-    ++j["spos"];
-    ++j["lpos"];
+    ++j["pos"];
+    return j["c"];
+}
+
+function nextch(j) {
+    nextchL(j);
+    while (j["c"] == "") {
+        if (getline j["s"] <= 0)
+            return "";
+        j["pos"] = 0;
+        nextchL(j);
+    }
     return j["c"];
 }
 
@@ -85,7 +97,7 @@ function escape(j,      c, i, u) {
 function str(j,     c, v) {
     v = "";
     # " is already consumed
-    for (c = j["c"]; c != "\""; c = nextch(j)) {
+    for (c = j["c"]; c != "\""; c = nextchL(j)) {
         if (c == "")
             err(j, "unterminated string");
         else if (c in bad)
@@ -100,14 +112,8 @@ function str(j,     c, v) {
 }
 
 function space(j,       c) {
-    c = j["c"];
-    while (c == " " || c == "\t" || c == "\n" || c == "\r") {
-        if (c == "\n") {
-            ++j["lineno"];
-            j["lpos"] = 0;
-        }
-        c = nextch(j);
-    }
+    for (c = j["c"]; c == " " || c == "\t"; c = nextch(j))
+        ;
 }
 
 function j_parse_kv(j, i,       k) {
@@ -168,7 +174,7 @@ function frac_exp(j,    c, f) {
         f = f c;
         c = nextch(j);
         if (!isdig(c))
-            err(j, "expected fraction");
+            err(j, "epxected fraction");
         for (; isdig(c); c = nextch(j))
             f = f c;
     }
@@ -181,39 +187,43 @@ function frac_exp(j,    c, f) {
             c = nextch(j);
         }
         if (!isdig(c))
-            err(j, "expected exponent");
+            err(j, "epxected exponent");
         for (; isdig(c); c = nextch(j))
             f = f c;
     }
     return f;
 }
 
-function j_parse_n(j, c,    n) {
+function num(j, c,    n) {
     n = "";
     if (c == "-") {
         n = "-";
         c = j["c"];
         if (!isdig(c))
-            err(j, "expected number");
+            err(j, "epxected number");
         nextch(j);
     }
 
     n = n c;
     # leading zeros are not allowed for numbers except 0.123
     if (c != "0")
-        for (c = j["c"]; isdig(c); c = nextch(j))
+        for (c = j["c"]; isdig(c); c = nextchL(j))
             n = n c;
 
-    return j_new(j, T_N, n frac_exp(j));
+    return n frac_exp(j);
+}
+
+function j_parse_n(j, c) {
+    return j_new(j, T_N, num(j, c));
 }
 
 function j_parse_i(j, c) {
     if (c == "t" && !(eat(j, "r") && eat(j, "u") && eat(j, "e")))
-        err(j, "'true' expected");
+        err(j, "'true' epxected");
     else if (c == "f" && !(eat(j, "a") && eat(j, "l") && eat(j, "s") && eat(j, "e")))
-        err(j, "'false' expected");
+        err(j, "'false' epxected");
     else if (c == "n" && !(eat(j, "u") && eat(j, "l") && eat(j, "l")))
-        err(j, "'null' expected");
+        err(j, "'null' epxected");
     return j_new(j, c == "t" ? T_T : c == "f" ? T_F : T_Z, "");
 }
 
@@ -333,29 +343,28 @@ function j_init(     n, a, i) {
         bad[sprintf("%c", i)] = i;
 }
 
-function j_parse0(j, s) {
-    j["s"] = s;
-    j["c"] = " ";
+function j_obj(j, s) {
     j["id"] = 0;
-    j["spos"] = 0;
-    j["lpos"] = 0;
     j["nest"] = 0;
-    j["lineno"] = 1;
-    return j_parse(j);
+    j["pos"] = 0;
+    j["s"] = "";
+    j["c"] = "";
+    nextch(j);
 }
 
 BEGIN {
+    # don't need fields
+    FS = "\n";
     sp = "INDENT" in ENVIRON && ENVIRON["INDENT"] > 0 ? ENVIRON["INDENT"] : 4;
-    getline source;
-}
-
-{
-    source = source "\n" $0;
-}
-
-END {
     j_init();
-    id = j_parse0(obj, source);
-    "FLAT" in ENVIRON ? j_flat(obj) : j_print(obj, id);
+    j_obj(obj);
+
+    id = j_parse(obj);
+    if (id) {
+        "FLAT" in ENVIRON ? j_flat(obj) : j_print(obj, id);
+        exit 0;
+    }
+
+    err(obj, "incomplete file");
 }
 
